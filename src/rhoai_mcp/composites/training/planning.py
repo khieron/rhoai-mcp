@@ -17,6 +17,7 @@ from rhoai_mcp.domains.training.models import (
 from rhoai_mcp.utils.errors import NotFoundError
 
 if TYPE_CHECKING:
+    from rhoai_mcp.config import RHOAIConfig
     from rhoai_mcp.server import RHOAIServer
 
 
@@ -449,6 +450,12 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
         configuration validation, and optional storage creation. Use this before
         calling train() to ensure everything is ready.
 
+        When all checks pass, it also deploys the training-health-monitor-skill
+        — a Khieron Skill that autonomously monitors training job health,
+        detecting issues like loss plateaus, low GPU utilization, and missing
+        checkpoints. The skill receives a context file describing the training
+        configuration so it can make informed judgments.
+
         Args:
             namespace: The namespace for the training job.
             model_id: Model identifier (e.g., "meta-llama/Llama-2-7b-hf").
@@ -465,6 +472,8 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
             - resource_estimate: GPU/memory requirements
             - recommended_runtime: Runtime to use
             - storage_created: Whether storage was created
+            - monitoring_skill: Deployment result for the training health
+                monitor skill (deployed when ready=True)
             - next_action: "train" or "fix_issues"
             - suggested_train_params: Parameters for train() call
         """
@@ -598,6 +607,18 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
 
         ready = prereq_passed and len(issues) == 0
 
+        monitoring_result = None
+        if ready:
+            monitoring_result = _deploy_training_monitor(
+                config=server.config,
+                namespace=namespace,
+                model_id=model_id,
+                dataset_id=dataset_id,
+                method=method,
+                runtime_name=recommended_runtime,
+                resource_estimate=resource_estimate,
+            )
+
         return {
             "ready": ready,
             "issues": issues if issues else None,
@@ -606,6 +627,7 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
             "recommended_runtime": recommended_runtime,
             "storage_created": storage_created,
             "storage_pvc": pvc_name if storage_exists else None,
+            "monitoring_skill": monitoring_result,
             "next_action": "train" if ready else "fix_issues",
             "suggested_train_params": suggested_params,
         }
@@ -690,6 +712,72 @@ def _sanitize_pvc_name(base_name: str, suffix: str = "") -> str:
         sanitized = f"{truncated}-{hash_suffix}"
 
     return sanitized
+
+
+def _deploy_training_monitor(
+    config: RHOAIConfig,
+    namespace: str,
+    model_id: str,
+    dataset_id: str,
+    method: str,
+    runtime_name: str | None,
+    resource_estimate: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Deploy the training health monitor skill (best-effort).
+
+    If helm is not available or the deployment fails, a result dict with
+    the error is returned but prepare_training still succeeds.
+    """
+    from rhoai_mcp.composites.monitoring.tools import deploy_monitoring_skill
+
+    context_content = _build_training_context_markdown(
+        model_id=model_id,
+        dataset_id=dataset_id,
+        method=method,
+        runtime_name=runtime_name,
+        resource_estimate=resource_estimate,
+    )
+
+    context_files = {
+        r"references___SKILL-CONTEXT\.md": context_content,
+    }
+
+    chart_ref = "oci://ghcr.io/khieron/charts/training-health-monitor-skill:0.1.2"
+    release_name = f"training-monitor-{namespace}"
+
+    return deploy_monitoring_skill(
+        config=config,
+        namespace=namespace,
+        chart_ref=chart_ref,
+        release_name=release_name,
+        context_files=context_files,
+    )
+
+
+def _build_training_context_markdown(
+    model_id: str,
+    dataset_id: str,
+    method: str,
+    runtime_name: str | None,
+    resource_estimate: dict[str, Any],
+) -> str:
+    """Build a markdown context file describing the training configuration."""
+    lines = [
+        "# Training Context",
+        "",
+        "## Training Parameters",
+        f"- **Model**: {model_id}",
+        f"- **Dataset**: {dataset_id}",
+        f"- **Method**: {method}",
+        f"- **Runtime**: {runtime_name or 'auto-selected'}",
+        "",
+        "## Resource Estimates",
+        f"- **Estimated Parameters**: {resource_estimate.get('estimated_params_billion', 'unknown')}B",
+        f"- **Total Memory Required**: {resource_estimate.get('total_required_gb', 'unknown')} GB",
+        f"- **Recommended GPUs**: {resource_estimate.get('recommended_gpus', 'unknown')}",
+        f"- **Storage**: {resource_estimate.get('storage_gb', 'unknown')} GB",
+    ]
+    return "\n".join(lines)
 
 
 def _extract_param_count(model_id: str) -> float:

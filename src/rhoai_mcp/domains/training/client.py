@@ -464,6 +464,9 @@ class TrainingClient:
                     "requests": {
                         "nvidia.com/gpu": str(gpus_per_node),
                     },
+                    "limits": {
+                        "nvidia.com/gpu": str(gpus_per_node),
+                    },
                 },
             },
             "runtimeRef": {

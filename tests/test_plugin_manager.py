@@ -235,9 +235,9 @@ class TestPluginManager:
         pm = PluginManager()
         count = pm.load_core_plugins()
 
-        # Should load 9 core domain plugins + 4 composite plugins = 13 total
-        assert count == 13
-        assert len(pm.registered_plugins) == 13
+        # Should load 10 core domain plugins + 5 composite plugins = 15 total
+        assert count == 15
+        assert len(pm.registered_plugins) == 15
 
         # Verify expected plugins are loaded
         # Core domain plugins (9)
@@ -252,12 +252,13 @@ class TestPluginManager:
             "prompts",
             "model_registry",
         }
-        # Composite plugins (4)
+        # Composite plugins (5)
         expected_composites = {
             "cluster-composites",
             "training-composites",
             "meta-composites",
             "planner-composites",
+            "monitoring-composites",
         }
         expected = expected_domains | expected_composites
         assert set(pm.registered_plugins.keys()) == expected
@@ -293,8 +294,8 @@ class TestPluginManager:
         pm = PluginManager()
         count = pm.load_core_plugins(enabled_plugins=None)
 
-        assert count == 13
-        assert len(pm.registered_plugins) == 13
+        assert count == 15
+        assert len(pm.registered_plugins) == 15
 
     def test_load_core_plugins_filter_nonexistent_name(self) -> None:
         """Verify non-existent plugin names in filter are silently ignored."""

@@ -1102,6 +1102,42 @@ class TestPlannerClientGenerateConfig:
             )
 
     @patch("rhoai_mcp.composites.planner.client.httpx")
+    def test_generate_config_string_success_field(self, mock_httpx: MagicMock) -> None:
+        """Deploy response with non-boolean truthy success value still succeeds."""
+        mock_client = MagicMock()
+
+        ranked_resp = MagicMock()
+        ranked_resp.status_code = 200
+        ranked_resp.json.return_value = SAMPLE_RANKED_RESPONSE
+        ranked_resp.raise_for_status = MagicMock()
+
+        string_success_deploy = {**SAMPLE_DEPLOY_RESPONSE, "success": "true"}
+        deploy_resp = MagicMock()
+        deploy_resp.status_code = 200
+        deploy_resp.json.return_value = string_success_deploy
+        deploy_resp.raise_for_status = MagicMock()
+
+        mock_client.post.side_effect = [ranked_resp, deploy_resp]
+        mock_httpx.Client.return_value.__enter__ = MagicMock(return_value=mock_client)
+        mock_httpx.Client.return_value.__exit__ = MagicMock(return_value=False)
+
+        client = PlannerClient("http://localhost:8000")
+        result = client.generate_config(
+            category="balanced",
+            use_case="chatbot_conversational",
+            user_count=1000,
+            prompt_tokens=512,
+            output_tokens=256,
+            expected_qps=10.0,
+            ttft_target_ms=150,
+            itl_target_ms=65,
+            e2e_target_ms=2000,
+        )
+
+        assert isinstance(result, DeploymentConfigResult)
+        assert result.deployment_id == "chatbot-llama-3-1-70b-20260322143022"
+
+    @patch("rhoai_mcp.composites.planner.client.httpx")
     def test_generate_config_model_id_fallback(self, mock_httpx: MagicMock) -> None:
         """When model_name is None, model_id is used instead."""
         mock_client = MagicMock()

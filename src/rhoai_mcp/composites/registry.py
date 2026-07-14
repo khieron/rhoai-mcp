@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from rhoai_mcp.composites.permissions import (
     CLUSTER_PERMISSIONS,
+    MONITORING_COMPOSITE_PERMISSIONS,
     TRAINING_COMPOSITE_PERMISSIONS,
 )
 from rhoai_mcp.hooks import hookimpl
@@ -162,6 +163,39 @@ class PlannerCompositesPlugin(BasePlugin):
         return client.health_check()
 
 
+class MonitoringCompositesPlugin(BasePlugin):
+    """Plugin for monitoring skill deployment tools.
+
+    Provides tools to deploy monitoring Skills via helm charts,
+    enabling automated health monitoring for workloads.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            PluginMetadata(
+                name="monitoring-composites",
+                version="1.0.0",
+                description="Monitoring skill deployment tools",
+                maintainer="rhoai-mcp@redhat.com",
+                requires_crds=[],
+            )
+        )
+
+    @hookimpl
+    def rhoai_register_tools(self, mcp: FastMCP, server: RHOAIServer) -> None:
+        from rhoai_mcp.composites.monitoring.tools import register_tools
+
+        register_tools(mcp, server)
+
+    @hookimpl
+    def rhoai_get_tool_permissions(self) -> dict[str, list[dict[str, str]]]:
+        return MONITORING_COMPOSITE_PERMISSIONS
+
+    @hookimpl
+    def rhoai_health_check(self, server: RHOAIServer) -> tuple[bool, str]:  # noqa: ARG002
+        return True, "Monitoring composites use helm CLI"
+
+
 def get_composite_plugins() -> list[BasePlugin]:
     """Return all composite plugin instances.
 
@@ -173,4 +207,5 @@ def get_composite_plugins() -> list[BasePlugin]:
         TrainingCompositesPlugin(),
         MetaCompositesPlugin(),
         PlannerCompositesPlugin(),
+        MonitoringCompositesPlugin(),
     ]

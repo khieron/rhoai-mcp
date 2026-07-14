@@ -14,11 +14,13 @@ ALL_PLUGIN_NAMES = {
     "training",
     "prompts",
     "model_registry",
-    # Composite plugins (4)
+    "quickstarts",
+    # Composite plugins (5)
     "cluster-composites",
     "training-composites",
     "meta-composites",
     "planner-composites",
+    "monitoring-composites",
 }
 
 # Plugins whose health checks always return True (no external dependencies)

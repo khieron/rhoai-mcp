@@ -1,0 +1,101 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: khieron-system
+resources:
+  - ../openshift
+patches:
+  - target:
+      kind: Namespace
+      name: rhoai-mcp
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: khieron-system
+  - target:
+      kind: ConfigMap
+      name: rhoai-mcp-config
+    patch: |
+      - op: replace
+        path: /data/RHOAI_MCP_TRANSPORT
+        value: "streamable-http"
+      - op: add
+        path: /data/HELM_CACHE_HOME
+        value: "/tmp/helm-cache"
+  - target:
+      kind: Deployment
+      name: rhoai-mcp
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value:
+          - "--transport"
+          - "streamable-http"
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "quay.io/aicatalyst/rhoai-mcp:13JulTestC"
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/timeoutSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/failureThreshold
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+  - target:
+      kind: ClusterRole
+      name: rhoai-mcp
+    patch: |
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: [""]
+          resources: ["secrets"]
+          verbs: ["update", "patch"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: [""]
+          resources: ["configmaps"]
+          verbs: ["get", "list", "watch", "create", "update", "delete"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: ["rbac.authorization.k8s.io"]
+          resources: ["roles", "rolebindings"]
+          verbs: ["get", "list", "watch", "create", "update", "delete"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: ["rbac.authorization.k8s.io"]
+          resources: ["clusterrolebindings"]
+          verbs: ["get", "list", "watch", "create", "update", "delete"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: ["agency.khieron.io"]
+          resources: ["skills"]
+          verbs: ["get", "list", "watch", "create", "update", "delete"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: [""]
+          resources: ["events"]
+          verbs: ["create", "patch"]
+      - op: add
+        path: /rules/-
+        value:
+          apiGroups: ["monitoring.coreos.com"]
+          resources: ["prometheuses/api"]
+          resourceNames: ["k8s"]
+          verbs: ["get", "create", "update"]
+  - target:
+      kind: ClusterRoleBinding
+      name: rhoai-mcp
+    patch: |
+      - op: replace
+        path: /subjects/0/namespace
+        value: khieron-system

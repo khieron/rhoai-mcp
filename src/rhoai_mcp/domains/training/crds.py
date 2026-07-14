@@ -8,21 +8,21 @@ class TrainingCRDs:
 
     TRAIN_JOB = CRDDefinition(
         group="trainer.kubeflow.org",
-        version="v1",
+        version="v1alpha1",
         plural="trainjobs",
         kind="TrainJob",
     )
 
     CLUSTER_TRAINING_RUNTIME = CRDDefinition(
         group="trainer.kubeflow.org",
-        version="v1",
+        version="v1alpha1",
         plural="clustertrainingruntimes",
         kind="ClusterTrainingRuntime",
     )
 
     TRAINING_RUNTIME = CRDDefinition(
         group="trainer.kubeflow.org",
-        version="v1",
+        version="v1alpha1",
         plural="trainingruntimes",
         kind="TrainingRuntime",
     )

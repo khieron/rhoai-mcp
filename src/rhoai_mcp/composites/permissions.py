@@ -117,3 +117,10 @@ TRAINING_COMPOSITE_PERMISSIONS: dict[str, list[dict[str, str]]] = {
         {"apiGroup": "", "resource": "events", "verb": "list"},
     ],
 }
+
+MONITORING_COMPOSITE_PERMISSIONS: dict[str, list[dict[str, str]]] = {
+    "add_monitoring_with_skill": [
+        {"apiGroup": "", "resource": "secrets", "verb": "create"},
+        {"apiGroup": "", "resource": "configmaps", "verb": "create"},
+    ],
+}
